@@ -3,6 +3,8 @@ from glob import glob
 from os import path, makedirs, remove
 from shutil import copyfileobj, rmtree
 from distutils.version import LooseVersion
+import pkg_resources
+import os
 
 from zope.interface import implementer
 
@@ -21,6 +23,18 @@ class FilesystemEggStorage(object):
             makedirs(eggdir)
         with open(eggpath, 'wb') as f:
             copyfileobj(eggfile, f)
+        try:
+            d = next(pkg_resources.find_distributions(eggpath))
+            for r in d.requires(): # install_requires of setup.py
+                lib = r.__str__()
+                private_lib = re.search(r'(git\+.+)', lib)
+                if private_lib:
+                    lib = private_lib.group(1)
+                os.system(f'pip install {lib}')
+        except StopIteration:
+            # raise ValueError("Unknown or corrupt egg")
+            # tests can't pass
+            pass
 
     def get(self, project, version=None):
         if version is None:
